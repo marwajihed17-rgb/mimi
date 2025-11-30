@@ -1,22 +1,33 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "build",
-  "rewrites": [
+  "builds": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
     }
   ],
-  "env": {
-    "VITE_INVOICE_WEBHOOK_URL": "@vite_invoice_webhook_url",
-    "VITE_KDR_WEBHOOK_URL": "@vite_kdr_webhook_url",
-    "VITE_GA_WEBHOOK_URL": "@vite_ga_webhook_url",
-    "VITE_KDRI_WEBHOOK_URL": "@vite_kdri_webhook_url",
-    "VITE_GOOGLE_SHEET_URL": "@vite_google_sheet_url"
-  }
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/build/$1"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/build/index.html"
+    }
+  ]
 }
