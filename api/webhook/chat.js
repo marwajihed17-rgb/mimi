@@ -42,6 +42,8 @@ module.exports = async (req, res) => {
     // Vercel automatically parses the body for JSON and form data
     const { message, module, sessionId, timestamp } = req.body;
 
+    console.log('Received webhook request:', { module, messageLength: message?.length, sessionId });
+
     // Validate required fields
     if (!message) {
       return res.status(400).json({
@@ -59,6 +61,7 @@ module.exports = async (req, res) => {
 
     // Get the webhook URL for the specified module
     const webhookUrl = WEBHOOK_URLS[module];
+    console.log('Forwarding to webhook URL:', webhookUrl);
 
     // Create FormData for n8n webhook
     const formData = new FormData();
@@ -71,42 +74,77 @@ module.exports = async (req, res) => {
     // For now, we'll support text-based messages. File upload support can be added with
     // additional configuration using libraries like 'busboy' or 'formidable' if needed.
 
-    // Forward to n8n webhook
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      body: formData,
-      headers: formData.getHeaders(),
-    });
+    // Forward to n8n webhook with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
-      console.error('Webhook request failed:', response.status, errorText);
-      throw new Error(`Webhook request failed: ${response.status} ${response.statusText}`);
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        body: formData,
+        headers: formData.getHeaders(),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      console.log('n8n response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        console.error('Webhook request failed:', response.status, response.statusText, errorText);
+        throw new Error(`n8n webhook returned ${response.status}: ${response.statusText}. ${errorText}`);
+      }
+
+      // Parse and return n8n response
+      const contentType = response.headers.get('content-type');
+      let data;
+
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        data = { message: text };
+      }
+
+      console.log('n8n response received:', { hasMessage: !!data.message, hasResponse: !!data.response });
+
+      res.status(200).json({
+        success: true,
+        response: data.message || data.response || 'Message processed successfully',
+        data: data
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+
+      if (fetchError.name === 'AbortError') {
+        console.error('Webhook request timeout');
+        throw new Error('The n8n webhook took too long to respond (timeout after 25 seconds). Please check your n8n workflow.');
+      }
+      throw fetchError;
     }
-
-    // Parse and return n8n response
-    const contentType = response.headers.get('content-type');
-    let data;
-
-    if (contentType && contentType.includes('application/json')) {
-      data = await response.json();
-    } else {
-      const text = await response.text();
-      data = { message: text };
-    }
-
-    res.status(200).json({
-      success: true,
-      response: data.message || data.response || 'Message processed successfully',
-      data: data
-    });
 
   } catch (error) {
     console.error('Webhook error:', error);
+
+    // Provide more helpful error messages
+    let userMessage = 'Sorry, I encountered an error processing your message.';
+
+    if (error.message.includes('timeout')) {
+      userMessage = 'The request timed out. Please check if your n8n workflow is running and responsive.';
+    } else if (error.message.includes('ECONNREFUSED')) {
+      userMessage = 'Could not connect to n8n. Please verify the webhook URL is correct and n8n is accessible.';
+    } else if (error.message.includes('404')) {
+      userMessage = 'The n8n webhook was not found. Please check the webhook URL configuration.';
+    } else if (error.message.includes('500') || error.message.includes('502') || error.message.includes('503')) {
+      userMessage = 'n8n encountered an error. Please check your workflow for errors.';
+    }
+
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to process message',
-      response: 'Sorry, I encountered an error processing your message. Please try again.'
+      response: userMessage,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
