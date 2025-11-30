@@ -3,13 +3,8 @@
  * POST /api/webhook/chat
  */
 
-const multer = require('multer');
 const FormData = require('form-data');
 const fetch = require('node-fetch');
-
-// Configure multer for serverless
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
 
 // Webhook URLs configuration
 const WEBHOOK_URLS = {
@@ -17,18 +12,6 @@ const WEBHOOK_URLS = {
   kdr: process.env.VITE_KDR_WEBHOOK_URL || 'https://your-n8n-instance.com/webhook/kdr',
   ga: process.env.VITE_GA_WEBHOOK_URL || 'https://your-n8n-instance.com/webhook/ga',
   kdri: process.env.VITE_KDRI_WEBHOOK_URL || 'https://your-n8n-instance.com/webhook/kdri',
-};
-
-// Helper to parse multipart form data in serverless
-const runMiddleware = (req, res, fn) => {
-  return new Promise((resolve, reject) => {
-    fn(req, res, (result) => {
-      if (result instanceof Error) {
-        return reject(result);
-      }
-      return resolve(result);
-    });
-  });
 };
 
 module.exports = async (req, res) => {
@@ -56,9 +39,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // Run multer middleware
-    await runMiddleware(req, res, upload.array('files', 10));
-
+    // Vercel automatically parses the body for JSON and form data
     const { message, module, sessionId, timestamp } = req.body;
 
     // Validate required fields
@@ -86,16 +67,9 @@ module.exports = async (req, res) => {
     formData.append('sessionId', sessionId || `session_${Date.now()}`);
     formData.append('timestamp', timestamp || new Date().toISOString());
 
-    // Add files if present
-    if (req.files && req.files.length > 0) {
-      req.files.forEach((file, index) => {
-        formData.append(`file_${index}`, file.buffer, {
-          filename: file.originalname,
-          contentType: file.mimetype
-        });
-      });
-      formData.append('fileCount', req.files.length.toString());
-    }
+    // Note: File uploads from browser FormData to serverless functions require special handling
+    // For now, we'll support text-based messages. File upload support can be added with
+    // additional configuration using libraries like 'busboy' or 'formidable' if needed.
 
     // Forward to n8n webhook
     const response = await fetch(webhookUrl, {
@@ -105,11 +79,21 @@ module.exports = async (req, res) => {
     });
 
     if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      console.error('Webhook request failed:', response.status, errorText);
       throw new Error(`Webhook request failed: ${response.status} ${response.statusText}`);
     }
 
     // Parse and return n8n response
-    const data = await response.json();
+    const contentType = response.headers.get('content-type');
+    let data;
+
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      data = { message: text };
+    }
 
     res.status(200).json({
       success: true,
