@@ -18,11 +18,5 @@
       "src": "/(.*)",
       "dest": "/$1"
     }
-  ],
-  "env": {
-    "VITE_INVOICE_WEBHOOK_URL": "@vite_invoice_webhook_url",
-    "VITE_KDR_WEBHOOK_URL": "@vite_kdr_webhook_url",
-    "VITE_GA_WEBHOOK_URL": "@vite_ga_webhook_url",
-    "VITE_KDRI_WEBHOOK_URL": "@vite_kdri_webhook_url"
-  }
+  ]
 }
