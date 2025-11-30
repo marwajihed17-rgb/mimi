@@ -81,9 +81,25 @@ export async function sendToWebhook(
     };
   } catch (error) {
     console.error('Webhook error:', error);
+
+    // Provide user-friendly error message
+    let errorMessage = 'Failed to process message. Please try again.';
+
+    if (error instanceof Error) {
+      if (error.message.includes('Failed to fetch')) {
+        errorMessage = 'Could not connect to the server. Please check your internet connection.';
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Request timed out. The n8n workflow may be taking too long to respond.';
+      } else if (error.message.includes('404')) {
+        errorMessage = 'Webhook not found. Please verify the n8n workflow is published and the URL is correct.';
+      } else if (error.message.includes('500') || error.message.includes('502') || error.message.includes('503')) {
+        errorMessage = 'Server error. Please check if the n8n workflow has any errors.';
+      }
+    }
+
     return {
       success: false,
-      response: 'Failed to process message. Please try again.',
+      response: errorMessage,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
