@@ -5,7 +5,6 @@
 
 export interface WebhookConfig {
   invoice: string;
-  document: string;
   kdr: string;
   ga: string;
   kdri: string;
@@ -14,8 +13,7 @@ export interface WebhookConfig {
 // Default webhook URLs - these should be configured via environment variables
 // or updated with your actual n8n workflow webhook URLs
 const webhookConfig: WebhookConfig = {
-  invoice: import.meta.env.VITE_INVOICE_WEBHOOK_URL || 'https://your-n8n-instance.com/webhook/invoice',
-  document: import.meta.env.VITE_DOCUMENT_WEBHOOK_URL || 'https://your-n8n-instance.com/webhook/document',
+  invoice: import.meta.env.VITE_INVOICE_WEBHOOK_URL || 'https://n8n.srv1009033.hstgr.cloud/webhook/invoice',
   kdr: import.meta.env.VITE_KDR_WEBHOOK_URL || 'https://your-n8n-instance.com/webhook/kdr',
   ga: import.meta.env.VITE_GA_WEBHOOK_URL || 'https://your-n8n-instance.com/webhook/ga',
   kdri: import.meta.env.VITE_KDRI_WEBHOOK_URL || 'https://your-n8n-instance.com/webhook/kdri',
