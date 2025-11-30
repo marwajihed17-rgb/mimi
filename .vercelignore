@@ -1,0 +1,35 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build files (will be rebuilt)
+build
+dist
+
+# Documentation (not needed in production)
+*.md
+!README.md
+
+# Git
+.git
+.gitignore
+
+# Server file (replaced by serverless functions)
+server.js

@@ -63,6 +63,7 @@
         "dev": "vite",
         "build": "vite build",
         "server": "node server.js",
-        "start:all": "npm run server & npm run dev"
+        "start:all": "npm run server & npm run dev",
+        "vercel-build": "vite build"
     }
 }
