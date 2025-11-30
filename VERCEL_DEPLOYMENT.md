@@ -44,6 +44,7 @@ This project consists of:
    | `VITE_KDR_WEBHOOK_URL` | Your n8n KDR webhook URL |
    | `VITE_GA_WEBHOOK_URL` | Your n8n GA webhook URL |
    | `VITE_KDRI_WEBHOOK_URL` | Your n8n KDRI webhook URL |
+   | `VITE_GOOGLE_SHEET_URL` | Your Google Sheets published CSV URL (for authentication) |
 
    **Important**: Make sure to add these to **both** "Production" and "Preview" environments.
 
@@ -77,6 +78,7 @@ This project consists of:
    vercel env add VITE_KDR_WEBHOOK_URL
    vercel env add VITE_GA_WEBHOOK_URL
    vercel env add VITE_KDRI_WEBHOOK_URL
+   vercel env add VITE_GOOGLE_SHEET_URL
    ```
 
    For each variable, you'll be prompted to:

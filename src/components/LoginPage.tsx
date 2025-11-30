@@ -61,9 +61,9 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     e.preventDefault();
     setError('');
     try {
-      const res = await fetch(
-        'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLkeLcybXule4nlT7mXMGoiErD9wnHIkqsq_1kHfe6HjemB7oy98zVKP0NyJ1pH_w3w1vVuFjEdDoX/pub?output=csv'
-      );
+      const sheetUrl = import.meta.env.VITE_GOOGLE_SHEET_URL ||
+        'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLkeLcybXule4nlT7mXMGoiErD9wnHIkqsq_1kHfe6HjemB7oy98zVKP0NyJ1pH_w3w1vVuFjEdDoX/pub?output=csv';
+      const res = await fetch(sheetUrl);
       const csv = await res.text();
       const rows = parseCsv(csv);
       const dataRows = rows.slice(1);
