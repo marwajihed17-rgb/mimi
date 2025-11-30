@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, User, Trash2, LogOut, Paperclip, Send, Eye, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { FileCheck } from 'lucide-react';
+import { sendToWebhook, generateSessionId } from '../config/webhooks';
 
 interface DocumentProcessingProps {
   onBack: () => void;
@@ -22,29 +23,72 @@ export function DocumentProcessing({ onBack, onLogout, username = 'User' }: Docu
   const [messages, setMessages] = useState<Message[]>([]);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [sessionId, setSessionId] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSend = () => {
+  // Generate unique session ID on component mount for chat isolation
+  useEffect(() => {
+    setSessionId(generateSessionId());
+  }, []);
+
+  const handleSend = async () => {
     if (message.trim() || attachments.length > 0) {
+      const userMessageText = message || `📎 ${attachments.length} file(s) attached`;
       const newMessage: Message = {
         id: Date.now(),
-        text: message || `📎 ${attachments.length} file(s) attached`,
+        text: userMessageText,
         sender: 'user',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
-      setMessages([...messages, newMessage]);
+
+      // Add user message to chat
+      setMessages(prev => [...prev, newMessage]);
+
+      // Store message and attachments for webhook call
+      const messageToSend = message;
+      const filesToSend = attachments;
+
+      // Clear input immediately for better UX
       setMessage('');
       setAttachments([]);
-      
-      // Simulate bot response
-      setTimeout(() => {
+      setIsLoading(true);
+
+      try {
+        // Send message to n8n webhook
+        const result = await sendToWebhook(
+          'document',
+          messageToSend || 'File attachment',
+          filesToSend,
+          sessionId
+        );
+
+        // Add webhook response to chat
         const botMessage: Message = {
           id: Date.now(),
-          text: 'I received your message and I\'m processing it...',
+          text: result.response,
           sender: 'bot',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         setMessages(prev => [...prev, botMessage]);
-      }, 1000);
+
+        // Log error if webhook failed but still show user-friendly message
+        if (!result.success && result.error) {
+          console.error('Webhook error:', result.error);
+        }
+      } catch (error) {
+        console.error('Failed to send message:', error);
+
+        // Show error message to user
+        const errorMessage: Message = {
+          id: Date.now(),
+          text: 'Sorry, I encountered an error processing your message. Please try again.',
+          sender: 'bot',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -222,10 +266,14 @@ export function DocumentProcessing({ onBack, onLogout, username = 'User' }: Docu
             />
             <Button
               onClick={handleSend}
-              disabled={!message.trim() && attachments.length === 0}
+              disabled={(!message.trim() && attachments.length === 0) || isLoading}
               className="shrink-0 bg-gradient-to-r from-[#4A90F5] to-[#C74AFF] hover:opacity-90 text-white animated-gradient disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Send className="w-5 h-5" />
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Send className="w-5 h-5" />
+              )}
             </Button>
           </div>
           <p className="text-gray-600 text-xs text-center mt-3">
