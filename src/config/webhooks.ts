@@ -28,6 +28,7 @@ export function getWebhookUrl(module: keyof WebhookConfig): string {
 
 /**
  * Send a message to the webhook and return the response
+ * Routes through Vercel API endpoints for proper handling
  */
 export async function sendToWebhook(
   module: keyof WebhookConfig,
@@ -35,9 +36,10 @@ export async function sendToWebhook(
   files?: File[],
   sessionId?: string
 ): Promise<{ success: boolean; response: string; error?: string }> {
-  const webhookUrl = getWebhookUrl(module);
-
   try {
+    // Use Vercel API endpoint instead of direct webhook URL
+    const apiUrl = '/api/webhook/chat';
+
     // Create FormData to support file uploads
     const formData = new FormData();
     formData.append('message', message);
@@ -54,28 +56,28 @@ export async function sendToWebhook(
     // Add files if present
     if (files && files.length > 0) {
       files.forEach((file, index) => {
-        formData.append(`file_${index}`, file);
+        formData.append('files', file);
       });
-      formData.append('fileCount', files.length.toString());
     }
 
-    // Send to webhook
-    const response = await fetch(webhookUrl, {
+    // Send to Vercel API endpoint
+    const response = await fetch(apiUrl, {
       method: 'POST',
       body: formData,
       // Don't set Content-Type header - browser will set it automatically with boundary for FormData
     });
 
     if (!response.ok) {
-      throw new Error(`Webhook request failed: ${response.status} ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed: ${response.status} ${response.statusText}`);
     }
 
     // Parse response
     const data = await response.json();
 
     return {
-      success: true,
-      response: data.message || data.response || 'Message processed successfully',
+      success: data.success || true,
+      response: data.response || data.message || 'Message processed successfully',
     };
   } catch (error) {
     console.error('Webhook error:', error);

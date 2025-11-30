@@ -18,71 +18,39 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const normalizeModule = (m: string) => {
-    const k = m.trim().toLowerCase();
-    if (k.includes('invoice')) return 'invoice';
-    if (k.includes('kdr invoicing')) return 'kdri';
-    if (k.includes('kdr processing')) return 'kdr';
-    if (k === 'kdr') return 'kdr';
-    if (k.includes('ga')) return 'ga';
-    return '';
-  };
-
-  const parseCsv = (text: string) => {
-    const lines = text.split('\n').filter((l) => l.trim().length > 0);
-    const rows: string[][] = [];
-    for (const line of lines) {
-      const cells: string[] = [];
-      let cur = '';
-      let inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') {
-          if (inQuotes && line[i + 1] === '"') {
-            cur += '"';
-            i++;
-          } else {
-            inQuotes = !inQuotes;
-          }
-        } else if (ch === ',' && !inQuotes) {
-          cells.push(cur.trim());
-          cur = '';
-        } else {
-          cur += ch;
-        }
-      }
-      cells.push(cur.trim());
-      rows.push(cells);
-    }
-    return rows;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     try {
-      const sheetUrl = import.meta.env.VITE_GOOGLE_SHEET_URL ||
-        'https://docs.google.com/spreadsheets/d/e/2PACX-1vQLkeLcybXule4nlT7mXMGoiErD9wnHIkqsq_1kHfe6HjemB7oy98zVKP0NyJ1pH_w3w1vVuFjEdDoX/pub?output=csv';
-      const res = await fetch(sheetUrl);
-      const csv = await res.text();
-      const rows = parseCsv(csv);
-      const dataRows = rows.slice(1);
-      const match = dataRows.find((r) => {
-        const u = r[1] || '';
-        const p = r[2] || '';
-        return u.toLowerCase() === username.toLowerCase() && p === password;
+      // Use the Vercel API endpoint for authentication
+      const apiUrl = '/api/auth/login';
+
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username,
+          password,
+        }),
       });
-      if (!match) {
-        setError('Invalid credentials');
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setError(data.error || 'Invalid credentials');
         return;
       }
-      const rawModules = (match[3] || '')
-        .split(',')
-        .map((m) => normalizeModule(m))
-        .filter(Boolean);
-      onLogin({ username: match[1] || username, modules: Array.from(new Set(rawModules)) });
+
+      // Login successful
+      onLogin({
+        username: data.username,
+        modules: data.modules,
+      });
     } catch (err) {
-      setError('Login failed');
+      console.error('Login error:', err);
+      setError('Login failed. Please try again.');
     }
   };
 
